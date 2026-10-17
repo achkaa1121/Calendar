@@ -1,0 +1,15 @@
+{
+  "name": "calendar-workspace",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "build:frontend": "npm run build --prefix frontend",
+    "lint:frontend": "npm run lint --prefix frontend",
+    "typecheck:backend": "npm run typecheck --prefix backend",
+    "prisma:validate": "npm run prisma:validate --prefix backend",
+    "prisma:generate": "npm run prisma:generate --prefix backend",
+    "db:migrate": "npm run db:migrate --prefix backend",
+    "db:deploy": "npm run db:deploy --prefix backend"
+  }
+}

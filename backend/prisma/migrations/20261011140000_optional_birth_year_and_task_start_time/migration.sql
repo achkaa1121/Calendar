@@ -1,0 +1,5 @@
+ALTER TABLE "Birthday"
+ALTER COLUMN "birthYear" DROP NOT NULL;
+
+ALTER TABLE "Task"
+ADD COLUMN "startTime" TEXT;

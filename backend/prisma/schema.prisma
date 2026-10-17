@@ -1,0 +1,64 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String     @id @default(uuid())
+  email     String     @unique
+  password  String
+  name      String?
+  timezone  String     @default("UTC")
+  createdAt DateTime   @default(now())
+  events    Event[]
+  tasks     Task[]
+  birthdays Birthday[]
+}
+
+model Event {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  startDate      DateTime @db.Date
+  endDate        DateTime @db.Date
+  startTime      String?
+  endTime        String?
+  isAllDay       Boolean  @default(false)
+  recurrenceRule String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, startTime, endTime])
+}
+
+model Task {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String
+  isCompleted    Boolean   @default(false)
+  dueDate        DateTime? @db.Date
+  startTime      String?
+  dueTime        String?
+  recurrenceRule String?
+  completedDates String[]  @default([])
+
+  @@index([userId])
+}
+
+model Birthday {
+  id        String @id @default(uuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  month     Int
+  day       Int
+  birthYear Int?
+
+  @@index([userId])
+}
