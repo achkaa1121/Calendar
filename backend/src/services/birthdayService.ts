@@ -1,5 +1,6 @@
 import { prisma } from "../prisma.js";
 import { ApiError } from "../utils/apiError.js";
+import { birthdaySchema, idSchema, parseInput } from "../utils/validation.js";
 
 export const listBirthdays = (userId: string) =>
   prisma.birthday.findMany({
@@ -8,40 +9,20 @@ export const listBirthdays = (userId: string) =>
   });
 
 export const createBirthday = async (userId: string, body: unknown) => {
-  const { name, month, day, birthYear } = (body ?? {}) as Record<string, unknown>;
-  const daysInMonth =
-    Number.isInteger(month) && typeof month === "number" && month >= 1 && month <= 12
-      ? new Date(Date.UTC(2000, month, 0)).getUTCDate()
-      : 0;
-  const parsedBirthYear = birthYear === undefined || birthYear === null ? null : birthYear;
-  if (
-    typeof name !== "string" ||
-    !name.trim() ||
-    !Number.isInteger(month) ||
-    !Number.isInteger(day) ||
-    typeof day !== "number" ||
-    day < 1 ||
-    day > daysInMonth ||
-    (parsedBirthYear !== null &&
-      (typeof parsedBirthYear !== "number" ||
-        !Number.isInteger(parsedBirthYear) ||
-        parsedBirthYear < 1 ||
-        parsedBirthYear > new Date().getFullYear()))
-  ) {
-    throw new ApiError("Invalid birthday details", 400);
-  }
+  const { name, month, day, birthYear } = parseInput(birthdaySchema, body);
   return prisma.birthday.create({
     data: {
       userId,
       name: name.trim(),
-      month: month as number,
+      month,
       day,
-      birthYear: parsedBirthYear as number | null,
+      birthYear: birthYear ?? null,
     },
   });
 };
 
 export const removeBirthday = async (userId: string, birthdayId: string) => {
+  birthdayId = parseInput(idSchema, birthdayId);
   const result = await prisma.birthday.deleteMany({
     where: { id: birthdayId, userId },
   });

@@ -6,20 +6,16 @@ import {
   parseDateOnly,
 } from "../utils/dateOnly.js";
 import { normalizeRecurrenceRule } from "../utils/recurrenceRule.js";
-
-const isValidTime = (value: unknown): value is string =>
-  typeof value === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
+import { eventRangeSchema, eventSchema, idSchema, parseInput } from "../utils/validation.js";
 
 export const listEvents = async (
   userId: string,
   rawStart: unknown,
   rawEnd: unknown,
 ) => {
-  const startDate = rawStart === undefined ? null : parseDateOnly(rawStart);
-  const endDate = rawEnd === undefined ? null : parseDateOnly(rawEnd);
-  if ((rawStart !== undefined && !startDate) || (rawEnd !== undefined && !endDate)) {
-    throw new ApiError("Invalid date range", 400);
-  }
+  const range = parseInput(eventRangeSchema, { start: rawStart, end: rawEnd });
+  const startDate = range.start ? parseDateOnly(range.start) : null;
+  const endDate = range.end ? parseDateOnly(range.end) : null;
   if (startDate && endDate && startDate > endDate) {
     throw new ApiError("Range start must be before range end", 400);
   }
@@ -57,29 +53,13 @@ export const createEvent = async (userId: string, body: unknown) => {
     endTime,
     isAllDay = false,
     recurrenceRule: rawRecurrenceRule,
-  } = (body ?? {}) as Record<string, unknown>;
+  } = parseInput(eventSchema, body);
   const startDate = parseDateOnly(rawStartDate);
   const endDate = parseDateOnly(rawEndDate);
-  const hasValidTimes =
-    isAllDay || (isValidTime(startTime) && isValidTime(endTime));
-  const hasValidSameDayTimeRange =
-    isAllDay ||
-    rawStartDate !== rawEndDate ||
-    (isValidTime(startTime) && isValidTime(endTime) && endTime > startTime);
-  if (
-    typeof title !== "string" ||
-    !title.trim() ||
-    !startDate ||
-    !endDate ||
-    typeof rawStartDate !== "string" ||
-    typeof rawEndDate !== "string" ||
-    rawStartDate < currentDateOnly() ||
-    rawEndDate < rawStartDate ||
-    typeof isAllDay !== "boolean" ||
-    (description !== undefined && typeof description !== "string") ||
-    !hasValidTimes ||
-    !hasValidSameDayTimeRange
-  ) {
+  if (!startDate || !endDate) {
+    throw new ApiError("Events need valid future dates and a valid time range", 400);
+  }
+  if (rawStartDate < currentDateOnly()) {
     throw new ApiError("Events need valid future dates and a valid time range", 400);
   }
 
@@ -105,6 +85,7 @@ export const createEvent = async (userId: string, body: unknown) => {
 };
 
 export const removeEvent = async (userId: string, eventId: string) => {
+  eventId = parseInput(idSchema, eventId);
   const result = await prisma.event.deleteMany({ where: { id: eventId, userId } });
   if (result.count === 0) throw new ApiError("Event not found", 404);
 };

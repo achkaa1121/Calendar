@@ -9,11 +9,7 @@ import {
   normalizeRecurrenceRule,
   recurrenceOccursOnDate,
 } from "../utils/recurrenceRule.js";
-
-const isValidTime = (value: unknown) =>
-  value === undefined ||
-  value === null ||
-  (typeof value === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value));
+import { idSchema, parseInput, taskCompletionSchema, taskSchema } from "../utils/validation.js";
 
 const serializeTask = <T extends { dueDate: Date | null }>(task: T) => ({
   ...task,
@@ -35,22 +31,12 @@ export const createTask = async (userId: string, body: unknown) => {
     startTime,
     dueTime,
     recurrenceRule: rawRecurrenceRule,
-  } = (body ?? {}) as Record<string, unknown>;
+  } = parseInput(taskSchema, body);
   const parsedDueDate = dueDate === null || dueDate === undefined
     ? null
     : parseDateOnly(dueDate);
 
-  if (
-    typeof title !== "string" ||
-    !title.trim() ||
-    (dueDate !== undefined && dueDate !== null && !parsedDueDate) ||
-    (typeof dueDate === "string" && dueDate < currentDateOnly()) ||
-    !isValidTime(startTime) ||
-    !isValidTime(dueTime) ||
-    (typeof startTime === "string" &&
-      typeof dueTime === "string" &&
-      dueTime <= startTime)
-  ) {
+  if ((typeof dueDate === "string" && !parsedDueDate) || (typeof dueDate === "string" && dueDate < currentDateOnly())) {
     throw new ApiError("Invalid task details", 400);
   }
   const recurrenceRule = normalizeRecurrenceRule(
@@ -79,9 +65,10 @@ export const setTaskCompletion = async (
   value: unknown,
   occurrenceDate: unknown,
 ) => {
-  if (typeof value !== "boolean") {
-    throw new ApiError("isCompleted must be a boolean", 400);
-  }
+  taskId = parseInput(idSchema, taskId);
+  const input = parseInput(taskCompletionSchema, { isCompleted: value, occurrenceDate });
+  const isCompleted = input.isCompleted;
+  occurrenceDate = input.occurrenceDate;
   const task = await prisma.task.findFirst({ where: { id: taskId, userId } });
   if (!task) throw new ApiError("Task not found", 404);
 
@@ -100,7 +87,7 @@ export const setTaskCompletion = async (
       throw new ApiError("Invalid task occurrence date", 400);
     }
     const completedDates = new Set(task.completedDates);
-    if (value) completedDates.add(occurrenceDate);
+    if (isCompleted) completedDates.add(occurrenceDate);
     else completedDates.delete(occurrenceDate);
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
@@ -111,12 +98,13 @@ export const setTaskCompletion = async (
 
   const updatedTask = await prisma.task.update({
     where: { id: taskId },
-    data: { isCompleted: value },
+    data: { isCompleted },
   });
   return serializeTask(updatedTask);
 };
 
 export const removeTask = async (userId: string, taskId: string) => {
+  taskId = parseInput(idSchema, taskId);
   const result = await prisma.task.deleteMany({ where: { id: taskId, userId } });
   if (result.count === 0) throw new ApiError("Task not found", 404);
 };

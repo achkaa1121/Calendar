@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { jwtSecret } from "../config/authConfig.js";
 import { prisma } from "../prisma.js";
 import { ApiError } from "../utils/apiError.js";
+import { loginSchema, parseInput, registerSchema } from "../utils/validation.js";
 
 const issueSession = (user: { id: string; email: string; name: string | null }) => ({
   token: jwt.sign({ userId: user.id }, jwtSecret, { expiresIn: "7d" }),
@@ -14,6 +15,7 @@ export const registerUser = async (
   password: string,
   name: string,
 ) => {
+  ({ email, password, name } = parseInput(registerSchema, { email, password, name }));
   const normalizedEmail = email.trim().toLowerCase();
   const existingUser = await prisma.user.findUnique({
     where: { email: normalizedEmail },
@@ -31,6 +33,7 @@ export const registerUser = async (
 };
 
 export const loginUser = async (email: string, password: string) => {
+  ({ email, password } = parseInput(loginSchema, { email, password }));
   const user = await prisma.user.findUnique({
     where: { email: email.trim().toLowerCase() },
   });
